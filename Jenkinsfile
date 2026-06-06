@@ -13,27 +13,11 @@ pipeline {
             }
         }
 
-        stage('Restore') {
-            steps {
-                sh 'dotnet restore'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'dotnet build --configuration Release --no-restore'
-            }
-        }
-
-        stage('Publish') {
-            steps {
-                sh 'dotnet publish -c Release -o publish'
-            }
-        }
-
         stage('Docker Build') {
             steps {
-                sh 'docker build -t $IMAGE_NAME:latest .'
+                sh '''
+                docker build -t $IMAGE_NAME:latest .
+                '''
             }
         }
 
@@ -45,10 +29,30 @@ pipeline {
 
                 docker run -d \
                 --name $CONTAINER_NAME \
-                -p 8080:8081 \
+                -p 8080:8080 \
+                -e ASPNETCORE_ENVIRONMENT=Development \
                 $IMAGE_NAME:latest
                 '''
             }
+        }
+
+        stage('Verify') {
+            steps {
+                sh '''
+                docker ps
+                docker logs $CONTAINER_NAME --tail 50
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment completed successfully.'
+        }
+
+        failure {
+            echo 'Deployment failed. Check console output.'
         }
     }
 }
